@@ -1,0 +1,54 @@
+# SPDX-FileCopyrightText: 2023 SAP SE or an SAP affiliate company and Gardener contributors
+#
+# SPDX-License-Identifier: Apache-2.0
+
+---
+image:
+  repository: eu.gcr.io/gardener-project/gardener/extensions/shoot-networking-traffic-gauger
+  tag: latest
+  pullPolicy: IfNotPresent
+
+serviceName: shoot-networking-traffic-gauger
+replicaCount: 1
+
+controllers:
+  lifecycle:
+    concurrentSyncs: 5
+  healthcheck:
+    concurrentSyncs: 5
+  heartbeat: 
+    renewIntervalSeconds: 30 
+  ignoreOperationAnnotation: false
+
+ignoreResources: false
+
+resources: {}
+vpa:
+  enabled: true
+  resourcePolicy:
+    minAllowed:
+      cpu: 30m
+      memory: 64Mi
+  updatePolicy:
+    updateMode: "Auto"
+
+gardener:
+  version: ""
+
+## settings for metrics, e.g. scraping by seed-prometheus
+##
+metrics:
+  ## enable metrics scraping
+  ##
+  enableScraping: true
+  port: 8080
+
+networkTrafficGauger:
+#  defaultPeriod: 5s
+#  maxPeerNodes: 7
+#  pspDisabled: false # pod security policy
+#  pingEnabled: false
+#  k8sExporter:
+#    enabled: false
+#    heartbeatPeriod: 3m
+#    minFailingPeerNodeShare: 0.2

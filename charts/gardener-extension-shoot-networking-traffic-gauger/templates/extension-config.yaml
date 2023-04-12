@@ -1,0 +1,21 @@
+# SPDX-FileCopyrightText: 2023 SAP SE or an SAP affiliate company and Gardener contributors
+#
+# SPDX-License-Identifier: Apache-2.0
+
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: extension-shoot-networking-traffic-gauger.config
+  namespace: {{ .Release.Namespace }}	
+data:
+  config.yaml: |
+    apiVersion: shoot-networking-traffic-gauger.extensions.config.gardener.cloud/v1alpha1
+    kind: Configuration
+{{- if .Values.networkTrafficGauger }}
+    networkTrafficGauger:
+  {{- range $k, $v := .Values.networkTrafficGauger }}
+      {{ $k }}:
+{{ toYaml $v | trim | indent 8 }}
+  {{- end}}
+{{- end}}
