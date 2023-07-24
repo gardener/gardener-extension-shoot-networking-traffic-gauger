@@ -7,9 +7,10 @@ package app
 import (
 	"os"
 
-	ntgcmd "github.com/gardener/gardener-extension-shoot-networking-traffic-gauger/pkg/cmd"
 	controllercmd "github.com/gardener/gardener/extensions/pkg/controller/cmd"
 	heartbeatcmd "github.com/gardener/gardener/extensions/pkg/controller/heartbeat/cmd"
+
+	ntgcmd "github.com/gardener/gardener-extension-shoot-networking-traffic-gauger/pkg/cmd"
 )
 
 // ExtensionName is the name of the extension.

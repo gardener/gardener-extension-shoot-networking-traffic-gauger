@@ -5,14 +5,13 @@
 package lifecycle
 
 import (
+	. "github.com/onsi/ginkgo/v2"
+	. "github.com/onsi/gomega"
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
 	networkingv1 "k8s.io/api/networking/v1"
 	policyv1beta1 "k8s.io/api/policy/v1beta1"
 	rbacv1 "k8s.io/api/rbac/v1"
-
-	. "github.com/onsi/ginkgo/v2"
-	. "github.com/onsi/gomega"
 )
 
 var _ = Describe("activator methods", func() {
@@ -55,7 +54,7 @@ var _ = Describe("activator methods", func() {
 		Expect(sa).NotTo(BeNil())
 		Expect(sa.Name).To(Equal("serviceAccount"))
 		Expect(psp).NotTo(BeNil())
-		Expect(cr.Name).To(Equal("gardener.kube-system.network-traffic-gauger"))
+		Expect(psp.Name).To(Equal("gardener.kube-system.network-traffic-gauger"))
 	})
 
 	It("#buildNetworkPolicy", func() {

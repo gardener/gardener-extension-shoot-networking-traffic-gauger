@@ -11,11 +11,6 @@ import (
 	"path/filepath"
 	"time"
 
-	"github.com/gardener/gardener-extension-shoot-networking-traffic-gauger/charts"
-	"github.com/gardener/gardener-extension-shoot-networking-traffic-gauger/pkg/apis/config"
-	"github.com/gardener/gardener-extension-shoot-networking-traffic-gauger/pkg/constants"
-	"github.com/gardener/gardener-extension-shoot-networking-traffic-gauger/pkg/imagevector"
-
 	"github.com/gardener/gardener/extensions/pkg/controller"
 	"github.com/gardener/gardener/extensions/pkg/controller/extension"
 	corev1betaconstants "github.com/gardener/gardener/pkg/apis/core/v1beta1/constants"
@@ -38,6 +33,11 @@ import (
 	"k8s.io/client-go/rest"
 	"k8s.io/utils/pointer"
 	"sigs.k8s.io/controller-runtime/pkg/client"
+
+	"github.com/gardener/gardener-extension-shoot-networking-traffic-gauger/charts"
+	"github.com/gardener/gardener-extension-shoot-networking-traffic-gauger/pkg/apis/config"
+	"github.com/gardener/gardener-extension-shoot-networking-traffic-gauger/pkg/constants"
+	"github.com/gardener/gardener-extension-shoot-networking-traffic-gauger/pkg/imagevector"
 )
 
 const (
