@@ -5,14 +5,15 @@
 package lifecycle
 
 import (
+	"context"
 	"time"
-
-	"github.com/gardener/gardener-extension-shoot-networking-traffic-gauger/pkg/constants"
-	controllerconfig "github.com/gardener/gardener-extension-shoot-networking-traffic-gauger/pkg/controller/config"
 
 	"github.com/gardener/gardener/extensions/pkg/controller/extension"
 	"sigs.k8s.io/controller-runtime/pkg/controller"
 	"sigs.k8s.io/controller-runtime/pkg/manager"
+
+	"github.com/gardener/gardener-extension-shoot-networking-traffic-gauger/pkg/constants"
+	controllerconfig "github.com/gardener/gardener-extension-shoot-networking-traffic-gauger/pkg/controller/config"
 )
 
 const (
@@ -38,14 +39,14 @@ type AddOptions struct {
 }
 
 // AddToManager adds a Networking Traffic Gauger Lifecycle controller to the given Controller Manager.
-func AddToManager(mgr manager.Manager) error {
-	return extension.Add(mgr, extension.AddArgs{
+func AddToManager(ctx context.Context, mgr manager.Manager) error {
+	return extension.Add(ctx, mgr, extension.AddArgs{
 		Actuator:          NewActuator(DefaultAddOptions.ServiceConfig.Configuration),
 		ControllerOptions: DefaultAddOptions.ControllerOptions,
 		Name:              Name,
 		FinalizerSuffix:   FinalizerSuffix,
 		Resync:            60 * time.Minute,
-		Predicates:        extension.DefaultPredicates(DefaultAddOptions.IgnoreOperationAnnotation),
+		Predicates:        extension.DefaultPredicates(ctx, mgr, DefaultAddOptions.IgnoreOperationAnnotation),
 		Type:              constants.ExtensionType,
 	})
 }
