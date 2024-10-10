@@ -1,25 +1,32 @@
-# SPDX-FileCopyrightText: 2023 SAP SE or an SAP affiliate company and Gardener contributors
-#
-# SPDX-License-Identifier: Apache-2.0
-
 gardener-extension-shoot-networking-traffic-gauger:
-  template: 'default'
+  templates:
+    helmcharts:
+    - &shoot-networking-traffic-gauger
+      name: shoot-networking-traffic-gauger
+      dir: charts/gardener-extension-shoot-networking-traffic-gauger
+      registry: europe-docker.pkg.dev/gardener-project/snapshots/charts/gardener/extensions
+      mappings:
+      - ref: ocm-resource:gardener-extension-shoot-networking-traffic-gauger.repository
+        attribute: image.repository
+      - ref: ocm-resource:gardener-extension-shoot-networking-traffic-gauger.tag
+        attribute: image.tag
+
   base_definition:
-    repo: ~
     traits:
+      version:
+        preprocess: 'inject-commit-hash'
       component_descriptor:
+        ocm_repository: europe-docker.pkg.dev/gardener-project/snapshots
         component_labels:
         - name: 'cloud.gardener.cnudie/responsibles'
           value:
           - type: 'codeowners'
         retention_policy: 'clean-snapshots'
-      version:
-        preprocess: 'inject-commit-hash'
       publish:
         dockerimages:
           gardener-extension-shoot-networking-traffic-gauger:
             registry: 'gcr-readwrite'
-            image: 'eu.gcr.io/gardener-project/gardener/extensions/shoot-networking-traffic-gauger'
+            image: europe-docker.pkg.dev/gardener-project/snapshots/gardener/extensions/shoot-networking-traffic-gauger
             dockerfile: 'Dockerfile'
             target: gardener-extension-shoot-networking-traffic-gauger
             resource_labels:
@@ -34,18 +41,32 @@ gardener-extension-shoot-networking-traffic-gauger:
   jobs:
     head-update:
       traits:
+        component_descriptor:
+          ocm_repository_mappings:
+             - repository: europe-docker.pkg.dev/gardener-project/releases
         draft_release: ~
         options:
           public_build_logs: true
+        publish:
+          helmcharts:
+          - *shoot-networking-traffic-gauger
     pull-request:
       traits:
         pull-request: ~
+        component_descriptor:
+          ocm_repository_mappings:
+             - repository: europe-docker.pkg.dev/gardener-project/releases
         options:
           public_build_logs: true
+        publish:
+          helmcharts:
+          - *shoot-networking-traffic-gauger
     release:
       traits:
         version:
           preprocess: 'finalize'
+        component_descriptor:
+          ocm_repository: europe-docker.pkg.dev/gardener-project/releases
         release:
           nextversion: 'bump_minor'
           next_version_callback: '.ci/prepare_release'
@@ -59,4 +80,8 @@ gardener-extension-shoot-networking-traffic-gauger:
         publish:
           dockerimages:
             gardener-extension-shoot-networking-traffic-gauger:
+              image: europe-docker.pkg.dev/gardener-project/releases/gardener/extensions/shoot-networking-traffic-gauger
               tag_as_latest: true
+          helmcharts:
+          - <<: *shoot-networking-traffic-gauger
+            registry: europe-docker.pkg.dev/gardener-project/releases/charts/gardener/extensions

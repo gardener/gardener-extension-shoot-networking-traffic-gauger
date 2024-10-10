@@ -1,0 +1,5 @@
+images:
+- name: network-traffic-gauger
+  sourceRepository: github.com/gardener/network-traffic-gauger
+  repository: europe-docker.pkg.dev/gardener-project/gardener/network-traffic-gauger
+  tag: "v0.1.0"
