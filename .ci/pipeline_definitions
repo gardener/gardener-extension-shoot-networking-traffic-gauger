@@ -25,7 +25,6 @@ gardener-extension-shoot-networking-traffic-gauger:
       publish:
         dockerimages:
           gardener-extension-shoot-networking-traffic-gauger:
-            registry: 'gcr-readwrite'
             image: europe-docker.pkg.dev/gardener-project/snapshots/gardener/extensions/shoot-networking-traffic-gauger
             dockerfile: 'Dockerfile'
             target: gardener-extension-shoot-networking-traffic-gauger
