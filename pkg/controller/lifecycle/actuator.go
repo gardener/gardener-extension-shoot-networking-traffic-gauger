@@ -14,7 +14,6 @@ import (
 	"github.com/gardener/gardener/extensions/pkg/controller"
 	"github.com/gardener/gardener/extensions/pkg/controller/extension"
 	corev1betaconstants "github.com/gardener/gardener/pkg/apis/core/v1beta1/constants"
-	gardencorev1beta1helper "github.com/gardener/gardener/pkg/apis/core/v1beta1/helper"
 	extensionsv1alpha1 "github.com/gardener/gardener/pkg/apis/extensions/v1alpha1"
 	"github.com/gardener/gardener/pkg/chartrenderer"
 	"github.com/gardener/gardener/pkg/client/kubernetes"
@@ -24,8 +23,6 @@ import (
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
 	networkingv1 "k8s.io/api/networking/v1"
-	policyv1beta1 "k8s.io/api/policy/v1beta1"
-	rbacv1 "k8s.io/api/rbac/v1"
 	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
@@ -36,9 +33,9 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	"github.com/gardener/gardener-extension-shoot-networking-traffic-gauger/charts"
+	"github.com/gardener/gardener-extension-shoot-networking-traffic-gauger/imagevector"
 	"github.com/gardener/gardener-extension-shoot-networking-traffic-gauger/pkg/apis/config"
 	"github.com/gardener/gardener-extension-shoot-networking-traffic-gauger/pkg/constants"
-	"github.com/gardener/gardener-extension-shoot-networking-traffic-gauger/pkg/imagevector"
 )
 
 const (
@@ -70,7 +67,7 @@ func (a *actuator) Reconcile(ctx context.Context, log logr.Logger, ex *extension
 	}
 
 	if !controller.IsHibernated(cluster) {
-		if err := a.createShootResources(ctx, cluster, namespace, gardencorev1beta1helper.IsPSPDisabled(cluster.Shoot)); err != nil {
+		if err := a.createShootResources(ctx, cluster, namespace); err != nil {
 			return err
 		}
 	}
@@ -103,8 +100,8 @@ func (a *actuator) createSeedResources(ctx context.Context, log logr.Logger, clu
 	}, nil)
 }
 
-func (a *actuator) createShootResources(ctx context.Context, cluster *controller.Cluster, namespace string, pspDisabled bool) error {
-	shootResources, err := a.getShootAgentResources(!pspDisabled)
+func (a *actuator) createShootResources(ctx context.Context, cluster *controller.Cluster, namespace string) error {
+	shootResources, err := a.getShootAgentResources()
 	if err != nil {
 		return err
 	}
@@ -128,7 +125,7 @@ func (a *actuator) createManagedResource(ctx context.Context, namespace, name, c
 func (a *actuator) Delete(ctx context.Context, log logr.Logger, ex *extensionsv1alpha1.Extension) error {
 	namespace := ex.GetNamespace()
 
-	err := a.deleteShootResources(ctx, log, namespace)
+	err := a.deleteShootResources(ctx, log, namespace, false)
 	if err != nil {
 		return err
 	}
@@ -136,10 +133,28 @@ func (a *actuator) Delete(ctx context.Context, log logr.Logger, ex *extensionsv1
 	return a.deleteSeedResources(ctx, log, namespace)
 }
 
-func (a *actuator) deleteShootResources(ctx context.Context, log logr.Logger, namespace string) error {
+// ForceDelete the Extension resource.
+func (a *actuator) ForceDelete(ctx context.Context, log logr.Logger, ex *extensionsv1alpha1.Extension) error {
+	namespace := ex.GetNamespace()
+
+	err := a.deleteShootResources(ctx, log, namespace, true)
+	if err != nil {
+		return err
+	}
+
+	return a.deleteSeedResources(ctx, log, namespace)
+}
+
+func (a *actuator) deleteShootResources(ctx context.Context, log logr.Logger, namespace string, forceDelete bool) error {
 	log.Info("Deleting managed resource for shoot", "namespace", namespace)
 	if err := managedresources.DeleteForShoot(ctx, a.client, namespace, constants.ManagedResourceNamesAgentShoot); err != nil {
 		return err
+	}
+
+	// We don't need to wait for the shoot managed resource deletion because managed resources are finalized by gardenlet
+	// in later step in the Shoot force deletion flow.
+	if forceDelete {
+		return nil
 	}
 
 	timeoutCtx, cancel := context.WithTimeout(ctx, 2*time.Minute)
@@ -195,7 +210,7 @@ func (a *actuator) InjectScheme(scheme *runtime.Scheme) error {
 	return nil
 }
 
-func (a *actuator) getShootAgentResources(pspEnabled bool) (map[string][]byte, error) {
+func (a *actuator) getShootAgentResources() (map[string][]byte, error) {
 	shootRegistry := managedresources.NewRegistry(kubernetes.ShootScheme, kubernetes.ShootCodec, kubernetes.ShootSerializer)
 
 	image, err := imagevector.ImageVector().FindImage(constants.AgentImageName)
@@ -204,13 +219,7 @@ func (a *actuator) getShootAgentResources(pspEnabled bool) (map[string][]byte, e
 	}
 
 	objects := []client.Object{}
-
 	serviceAccountName := ""
-	if pspEnabled {
-		serviceAccountName = constants.ApplicationName
-		pspObjects := buildPodSecurityPolicy(serviceAccountName)
-		objects = append(objects, pspObjects...)
-	}
 
 	daemonset := buildDaemonSet(image.String(), serviceAccountName)
 	networkPolicy := buildNetworkPolicy()
@@ -221,95 +230,6 @@ func (a *actuator) getShootAgentResources(pspEnabled bool) (map[string][]byte, e
 		return nil, err
 	}
 	return shootResources, nil
-}
-
-func buildPodSecurityPolicy(serviceAccountName string) []client.Object {
-	roleName := "gardener.cloud:psp:kube-system:" + constants.ApplicationName
-	resourceName := "gardener.kube-system." + constants.ApplicationName
-	clusterRole := &rbacv1.ClusterRole{
-		ObjectMeta: metav1.ObjectMeta{
-			Name: roleName,
-		},
-		Rules: []rbacv1.PolicyRule{
-			{
-				APIGroups:       []string{"policy"},
-				Verbs:           []string{"use"},
-				Resources:       []string{"podsecuritypolicies"},
-				ResourceNames:   []string{resourceName},
-				NonResourceURLs: nil,
-			},
-		},
-	}
-	clusterRoleBinding := &rbacv1.ClusterRoleBinding{
-		ObjectMeta: metav1.ObjectMeta{
-			Name: roleName,
-		},
-		RoleRef: rbacv1.RoleRef{
-			APIGroup: "rbac.authorization.k8s.io",
-			Kind:     "ClusterRole",
-			Name:     roleName,
-		},
-		Subjects: []rbacv1.Subject{
-			{
-				Kind:      "ServiceAccount",
-				Name:      serviceAccountName,
-				Namespace: constants.NamespaceKubeSystem,
-			},
-		},
-	}
-	serviceAccount := &corev1.ServiceAccount{
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      serviceAccountName,
-			Namespace: constants.NamespaceKubeSystem,
-		},
-		AutomountServiceAccountToken: pointer.Bool(false),
-	}
-	t := true
-	psp := &policyv1beta1.PodSecurityPolicy{
-		ObjectMeta: metav1.ObjectMeta{
-			Name: resourceName,
-			Annotations: map[string]string{
-				"seccomp.security.alpha.kubernetes.io/defaultProfileName":  "runtime/default",
-				"seccomp.security.alpha.kubernetes.io/allowedProfileNames": "runtime/default",
-			},
-		},
-		Spec: policyv1beta1.PodSecurityPolicySpec{
-			Privileged:               true,
-			DefaultAddCapabilities:   nil,
-			RequiredDropCapabilities: nil,
-			AllowedCapabilities:      []corev1.Capability{"NET_ADMIN"},
-			Volumes:                  []policyv1beta1.FSType{},
-			HostNetwork:              true,
-			HostPorts:                []policyv1beta1.HostPortRange{{Min: metricsPort, Max: metricsPort}},
-			HostPID:                  false,
-			HostIPC:                  false,
-			SELinux: policyv1beta1.SELinuxStrategyOptions{
-				Rule: policyv1beta1.SELinuxStrategyRunAsAny,
-			},
-			RunAsUser: policyv1beta1.RunAsUserStrategyOptions{
-				Rule: policyv1beta1.RunAsUserStrategyRunAsAny,
-			},
-			RunAsGroup: nil,
-			SupplementalGroups: policyv1beta1.SupplementalGroupsStrategyOptions{
-				Rule: policyv1beta1.SupplementalGroupsStrategyRunAsAny,
-			},
-			FSGroup: policyv1beta1.FSGroupStrategyOptions{
-				Rule: policyv1beta1.FSGroupStrategyRunAsAny,
-			},
-			ReadOnlyRootFilesystem:          false,
-			DefaultAllowPrivilegeEscalation: nil,
-			AllowPrivilegeEscalation:        &t,
-			AllowedHostPaths:                nil,
-			AllowedFlexVolumes:              nil,
-			AllowedCSIDrivers:               nil,
-			AllowedUnsafeSysctls:            nil,
-			ForbiddenSysctls:                nil,
-			AllowedProcMountTypes:           nil,
-			RuntimeClass:                    nil,
-		},
-	}
-
-	return []client.Object{clusterRole, clusterRoleBinding, serviceAccount, psp}
 }
 
 func buildDaemonSet(image string, serviceAccountName string) client.Object {

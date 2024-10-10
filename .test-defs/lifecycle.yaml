@@ -1,21 +1,21 @@
-# SPDX-FileCopyrightText: 2023 SAP SE or an SAP affiliate company and Gardener contributors
-#
-# SPDX-License-Identifier: Apache-2.0
-
+apiVersion: testmachinery.sapcloud.io
 kind: TestDefinition
 metadata:
-  name: shoot-networking-traffic-gauger-lifecycle
+  name: shoot-networking-traffic-gauger-test
 spec:
   owner: gardener-oq@listserv.sap.com
-  description: Tests the lifecycle of the networking traffic gauger extension.
-  activeDeadlineSeconds: 3600
+  description: System test for shoot networking traffic gauger extension
+
+  activeDeadlineSeconds: 1800
+  labels: ["shoot", "beta"]
 
   command: [bash, -c]
   args:
-  - >-
-    go test -timeout=25m -mod=vendor ./test/system/lifecycle
-    --v -ginkgo.v -ginkgo.progress -ginkgo.noColor
-    --shoot-name=$SHOOT_NAME
-    --project-namespace=$PROJECT_NAMESPACE
-    --kubecfg="$TM_KUBECONFIG_PATH/gardener.config"
-  image: golang:1.17.8
+    - >-
+      go test -timeout=0 ./test/system
+      --v -ginkgo.v -ginkgo.progress -ginkgo.no-color
+      --kubecfg="$TM_KUBECONFIG_PATH/gardener.config"
+      --shoot-name=$SHOOT_NAME
+      --existing-shoot-name=$SHOOT_NAME
+      --project-namespace=$PROJECT_NAMESPACE
+  image: golang:1.23.2
