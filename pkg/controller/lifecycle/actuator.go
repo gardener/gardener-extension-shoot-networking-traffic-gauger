@@ -29,7 +29,7 @@ import (
 	"k8s.io/apimachinery/pkg/runtime/serializer"
 	"k8s.io/apimachinery/pkg/util/intstr"
 	"k8s.io/client-go/rest"
-	"k8s.io/utils/pointer"
+	"k8s.io/utils/ptr"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	"github.com/gardener/gardener-extension-shoot-networking-traffic-gauger/charts"
@@ -252,7 +252,7 @@ func buildDaemonSet(image string, serviceAccountName string) client.Object {
 			Namespace: metav1.NamespaceSystem,
 		},
 		Spec: appsv1.DaemonSetSpec{
-			RevisionHistoryLimit: pointer.Int32(5),
+			RevisionHistoryLimit: ptr.To[int32](5),
 			Selector:             &metav1.LabelSelector{MatchLabels: labels},
 			UpdateStrategy: appsv1.DaemonSetUpdateStrategy{
 				Type: appsv1.RollingUpdateDaemonSetStrategyType,
@@ -267,7 +267,7 @@ func buildDaemonSet(image string, serviceAccountName string) client.Object {
 				Spec: corev1.PodSpec{
 					HostNetwork:                   true,
 					PriorityClassName:             corev1betaconstants.PriorityClassNameShootSystem900,
-					TerminationGracePeriodSeconds: pointer.Int64(0),
+					TerminationGracePeriodSeconds: ptr.To[int64](0),
 					Tolerations: []corev1.Toleration{
 						{
 							Effect:   corev1.TaintEffectNoSchedule,
@@ -298,7 +298,7 @@ func buildDaemonSet(image string, serviceAccountName string) client.Object {
 							},
 						},
 						SecurityContext: &corev1.SecurityContext{
-							Privileged: pointer.Bool(true),
+							Privileged: ptr.To(true),
 							Capabilities: &corev1.Capabilities{
 								Add: []corev1.Capability{"NET_ADMIN"},
 							},
