@@ -36,9 +36,9 @@ var _ = ginkgo.Describe("Extension-shoot-networking-traffic-gauger integration t
 	f := framework.NewShootFramework(nil)
 
 	ginkgo.Context("Extension", func() {
-		ginkgo.Context("Condition type: ShootSystemComponentsHealthy", func() {
+		ginkgo.Context("Condition type: ShootObservabilityComponentsHealthy", func() {
 			f.Serial().Release().CIt(fmt.Sprintf("Extension CRD should contain unhealthy condition due to ManagedResource '%s' is unhealthy", constants.ManagedResourceNamesSeed), func(ctx context.Context) {
-				err := healthcheckoperation.ExtensionHealthCheckWithManagedResource(ctx, timeout, f, "shoot-networking-traffic-gauger", constants.ManagedResourceNamesSeed, gardencorev1beta1.ShootSystemComponentsHealthy)
+				err := healthcheckoperation.ExtensionHealthCheckWithManagedResource(ctx, timeout, f, "shoot-networking-traffic-gauger", constants.ManagedResourceNamesSeed, gardencorev1beta1.ShootObservabilityComponentsHealthy)
 				framework.ExpectNoError(err)
 			}, timeout)
 		})

@@ -42,7 +42,7 @@ func RegisterHealthChecks(ctx context.Context, mgr manager.Manager, opts healthc
 		nil,
 		[]healthcheck.ConditionTypeToHealthCheck{
 			{
-				ConditionType: string(gardencorev1beta1.ShootSystemComponentsHealthy),
+				ConditionType: string(gardencorev1beta1.ShootObservabilityComponentsHealthy),
 				HealthCheck:   general.CheckManagedResource(constants.ManagedResourceNamesSeed),
 			},
 		},
