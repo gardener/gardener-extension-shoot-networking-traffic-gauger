@@ -17,7 +17,6 @@ import (
 	extensionsv1alpha1 "github.com/gardener/gardener/pkg/apis/extensions/v1alpha1"
 	"github.com/gardener/gardener/pkg/chartrenderer"
 	"github.com/gardener/gardener/pkg/client/kubernetes"
-	kutil "github.com/gardener/gardener/pkg/utils/kubernetes"
 	managedresources "github.com/gardener/gardener/pkg/utils/managedresources"
 	"github.com/go-logr/logr"
 	appsv1 "k8s.io/api/apps/v1"
@@ -85,19 +84,9 @@ func (a *actuator) createSeedResources(ctx context.Context, log logr.Logger, clu
 		return fmt.Errorf("could not create chart renderer: %w", err)
 	}
 
-	// TODO(rfranzke): Delete this after August 2024.
-	gep19Monitoring := a.client.Get(ctx, client.ObjectKey{Name: "prometheus-shoot", Namespace: namespace}, &appsv1.StatefulSet{}) == nil
-	if gep19Monitoring {
-		if err := kutil.DeleteObject(ctx, a.client, &corev1.ConfigMap{ObjectMeta: metav1.ObjectMeta{Name: "network-traffic-gauger-observability-config", Namespace: namespace}}); err != nil {
-			return fmt.Errorf("failed deleting network-traffic-gauger-observability-config ConfigMap: %w", err)
-		}
-	}
-
 	log.Info("Component is being applied", "component", "network-traffic-gauger-seed", "namespace", namespace)
 
-	return a.createManagedResource(ctx, namespace, constants.ManagedResourceNamesSeed, "seed", renderer, constants.NetworkTrafficGaugerChartNameSeed, namespace, map[string]interface{}{
-		"gep19Monitoring": gep19Monitoring,
-	}, nil)
+	return a.createManagedResource(ctx, namespace, constants.ManagedResourceNamesSeed, "seed", renderer, constants.NetworkTrafficGaugerChartNameSeed, namespace, nil, nil)
 }
 
 func (a *actuator) createShootResources(ctx context.Context, cluster *controller.Cluster, namespace string) error {
