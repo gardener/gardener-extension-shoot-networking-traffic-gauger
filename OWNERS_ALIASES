@@ -1,0 +1,13 @@
+# See the OWNERS docs at https://go.k8s.io/owners
+
+aliases:
+  gardener-extension-shoot-networking-traffic-gauger-reviewers:
+  - axel7born
+  - DockToFuture
+  - domdom82
+  - ScheererJ
+  gardener-extension-shoot-networking-traffic-gauger-approvers:
+  - axel7born
+  - DockToFuture
+  - domdom82
+  - ScheererJ
