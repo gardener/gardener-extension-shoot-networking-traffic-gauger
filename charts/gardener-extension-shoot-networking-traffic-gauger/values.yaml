@@ -30,7 +30,7 @@ vpa:
       cpu: 30m
       memory: 64Mi
   updatePolicy:
-    updateMode: "Auto"
+    updateMode: "Recreate"
 
 gardener:
   version: ""
