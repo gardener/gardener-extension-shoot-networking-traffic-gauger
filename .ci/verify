@@ -6,8 +6,11 @@ set -o pipefail
 
 cd "$(dirname $0)/.."
 
-git config --global user.email "gardener@sap.com"
-git config --global user.name "Gardener CI/CD"
+if [ -z "${GOPATH:-}" ]; then
+  # workaround. Can be dropped after revendoring gardener/gardener
+  mkdir -p $HOME/go
+  export GOPATH=$HOME/go
+fi
 
-export GOTOOLCHAIN=auto
+export GOTOOLCHAIN=local
 make verify-extended
