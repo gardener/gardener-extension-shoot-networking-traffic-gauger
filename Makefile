@@ -27,6 +27,11 @@ endif
 TOOLS_DIR := hack/tools
 include $(GARDENER_HACK_DIR)/tools.mk
 
+# Override golangci-lint install: Gardener's tools.mk tries to cd into a logcheck
+# directory that doesn't exist in the module cache. This extension doesn't use logcheck.
+$(GOLANGCI_LINT): $(call tool_version_file,$(GOLANGCI_LINT),$(GOLANGCI_LINT_VERSION))
+	GOBIN=$(abspath $(TOOLS_BIN_DIR)) CGO_ENABLED=1 go install github.com/golangci/golangci-lint/v2/cmd/golangci-lint@$(GOLANGCI_LINT_VERSION)
+
 #########################################
 # Rules for local development scenarios #
 #########################################

@@ -1,10 +1,9 @@
+version: "2"
+
 run:
   concurrency: 4
-  deadline: 10m
-
-skip-files:
-  - "zz_generated\\..*\\.go$"
+  timeout: 10m
 
 linters:
   disable:
-  - unused
+    - unused
