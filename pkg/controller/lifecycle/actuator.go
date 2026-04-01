@@ -227,8 +227,6 @@ func buildDaemonSet(image string, serviceAccountName string) client.Object {
 		requestMemory                = resource.MustParse("32Mi")
 		limitMemory                  = resource.MustParse("64Mi")
 		automountServiceAccountToken = false
-		fileStoreDirectory           = "/var/log/net-gauger"
-		hostPathType                 = corev1.HostPathDirectoryOrCreate
 		labels                       = map[string]string{
 			labelKeyK8sApp:        constants.ApplicationName,
 			"gardener.cloud/role": constants.ApplicationName,
@@ -303,8 +301,6 @@ func buildDaemonSet(image string, serviceAccountName string) client.Object {
 							"--dump-period=1m",
 							"--event-channel-buffer-size=1024",
 							"--event-receive-buffer-size=1048576",
-							fmt.Sprintf("--file-store-directory=%s", fileStoreDirectory),
-							"--file-store-channel-buffer-size=1024",
 							fmt.Sprintf("--metrics-port=%d", metricsPort),
 							"--enable-service-metrics=true",
 							"--enable-byte-metrics=true",
@@ -346,25 +342,7 @@ func buildDaemonSet(image string, serviceAccountName string) client.Object {
 								Add: []corev1.Capability{"NET_ADMIN"},
 							},
 						},
-						VolumeMounts: []corev1.VolumeMount{
-							{
-								Name:      "storage",
-								ReadOnly:  false,
-								MountPath: fileStoreDirectory,
-							},
-						},
 					}},
-					Volumes: []corev1.Volume{
-						{
-							Name: "storage",
-							VolumeSource: corev1.VolumeSource{
-								HostPath: &corev1.HostPathVolumeSource{
-									Path: fileStoreDirectory,
-									Type: &hostPathType,
-								},
-							},
-						},
-					},
 					SecurityContext: &corev1.PodSecurityContext{
 						SeccompProfile: &corev1.SeccompProfile{
 							Type: corev1.SeccompProfileTypeRuntimeDefault,
