@@ -1,4 +1,4 @@
-FROM golang:1.23.2 AS builder
+FROM golang:1.26.1 AS builder
 
 WORKDIR /go/src/github.com/gardener/gardener-extension-shoot-networking-traffic-gauger
 
@@ -13,7 +13,7 @@ ARG EFFECTIVE_VERSION
 RUN make install EFFECTIVE_VERSION=$EFFECTIVE_VERSION
 
 ############# base
-FROM gcr.io/distroless/static-debian11:nonroot AS base
+FROM gcr.io/distroless/static-debian13:nonroot AS base
 
 ############# gardener-extension-shoot-networking-traffic-gauger
 FROM base AS gardener-extension-shoot-networking-traffic-gauger
