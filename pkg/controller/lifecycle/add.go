@@ -41,7 +41,7 @@ type AddOptions struct {
 // AddToManager adds a Networking Traffic Gauger Lifecycle controller to the given Controller Manager.
 func AddToManager(ctx context.Context, mgr manager.Manager) error {
 	return extension.Add(mgr, extension.AddArgs{
-		Actuator:          NewActuator(DefaultAddOptions.ServiceConfig.Configuration),
+		Actuator:          NewActuator(mgr, DefaultAddOptions.ServiceConfig.Configuration),
 		ControllerOptions: DefaultAddOptions.ControllerOptions,
 		Name:              Name,
 		FinalizerSuffix:   FinalizerSuffix,
