@@ -9,6 +9,7 @@ import (
 	_ "embed"
 	"fmt"
 	"path/filepath"
+	"strings"
 	"time"
 
 	"github.com/gardener/gardener/extensions/pkg/controller"
@@ -94,7 +95,7 @@ func (a *actuator) createSeedResources(ctx context.Context, log logr.Logger, clu
 }
 
 func (a *actuator) createShootResources(ctx context.Context, cluster *controller.Cluster, namespace string) error {
-	shootResources, err := a.getShootAgentResources()
+	shootResources, err := a.getShootAgentResources(cluster)
 	if err != nil {
 		return err
 	}
@@ -185,7 +186,7 @@ func (a *actuator) Migrate(ctx context.Context, log logr.Logger, ex *extensionsv
 	return a.Delete(ctx, log, ex)
 }
 
-func (a *actuator) getShootAgentResources() (map[string][]byte, error) {
+func (a *actuator) getShootAgentResources(cluster *controller.Cluster) (map[string][]byte, error) {
 	shootRegistry := managedresources.NewRegistry(kubernetes.ShootScheme, kubernetes.ShootCodec, kubernetes.ShootSerializer)
 
 	image, err := imagevector.ImageVector().FindImage(constants.AgentImageName)
@@ -193,21 +194,27 @@ func (a *actuator) getShootAgentResources() (map[string][]byte, error) {
 		return nil, err
 	}
 
-	objects := []client.Object{}
-	serviceAccountName := ""
+	var clusterRanges []string
+	if networking := cluster.Shoot.Spec.Networking; networking != nil {
+		if networking.Nodes != nil {
+			clusterRanges = append(clusterRanges, *networking.Nodes)
+		}
+		if networking.Pods != nil {
+			clusterRanges = append(clusterRanges, *networking.Pods)
+		}
+	}
 
-	daemonset := buildDaemonSet(image.String(), serviceAccountName)
+	daemonset := buildDaemonSet(image.String(), "", clusterRanges)
 	networkPolicy := buildNetworkPolicy()
-	objects = append(objects, daemonset, networkPolicy)
 
-	shootResources, err := shootRegistry.AddAllAndSerialize(objects...)
+	shootResources, err := shootRegistry.AddAllAndSerialize(daemonset, networkPolicy)
 	if err != nil {
 		return nil, err
 	}
 	return shootResources, nil
 }
 
-func buildDaemonSet(image string, serviceAccountName string) client.Object {
+func buildDaemonSet(image string, serviceAccountName string, clusterRanges []string) client.Object {
 	var (
 		requestCPU                   = resource.MustParse("10m")
 		requestMemory                = resource.MustParse("32Mi")
@@ -217,7 +224,23 @@ func buildDaemonSet(image string, serviceAccountName string) client.Object {
 			labelKeyK8sApp:        constants.ApplicationName,
 			"gardener.cloud/role": constants.ApplicationName,
 		}
+		agentCommand = []string{
+			"/net-gauger",
+			"run-agent",
+			"--dump-period=1m",
+			"--event-channel-buffer-size=1024",
+			"--event-receive-buffer-size=1048576",
+			fmt.Sprintf("--metrics-port=%d", metricsPort),
+			"--enable-service-metrics=true",
+			"--enable-byte-metrics=true",
+			"--enable-packet-metrics=true",
+			"--enable-flow-count-metrics=true",
+		}
 	)
+
+	if len(clusterRanges) > 0 {
+		agentCommand = append(agentCommand, fmt.Sprintf("--cluster-ranges=%s", strings.Join(clusterRanges, ",")))
+	}
 
 	return &appsv1.DaemonSet{
 		ObjectMeta: metav1.ObjectMeta{
@@ -281,18 +304,7 @@ func buildDaemonSet(image string, serviceAccountName string) client.Object {
 						Name:            constants.ApplicationName,
 						Image:           image,
 						ImagePullPolicy: corev1.PullIfNotPresent,
-						Command: []string{
-							"/net-gauger",
-							"run-agent",
-							"--dump-period=1m",
-							"--event-channel-buffer-size=1024",
-							"--event-receive-buffer-size=1048576",
-							fmt.Sprintf("--metrics-port=%d", metricsPort),
-							"--enable-service-metrics=true",
-							"--enable-byte-metrics=true",
-							"--enable-packet-metrics=true",
-							"--enable-flow-count-metrics=true",
-						},
+						Command:         agentCommand,
 						LivenessProbe: &corev1.Probe{
 							ProbeHandler: corev1.ProbeHandler{
 								TCPSocket: &corev1.TCPSocketAction{
