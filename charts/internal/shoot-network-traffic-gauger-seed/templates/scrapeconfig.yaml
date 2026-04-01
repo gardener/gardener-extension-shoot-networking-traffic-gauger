@@ -12,8 +12,6 @@ spec:
       key: token
   scheme: HTTPS
   tlsConfig:
-    # This is needed because the kubelets' certificates are not are generated
-    # for a specific pod IP
     insecureSkipVerify: true
   kubernetesSDConfigs:
   - apiServer: https://kube-apiserver
@@ -25,19 +23,14 @@ spec:
     namespaces:
       names:
       - kube-system
-    role: endpoints
+    role: Pod
     tlsConfig:
-      # This is needed because we do not fetch the correct cluster CA bundle right now
       insecureSkipVerify: true
   metricRelabelings:
   - sourceLabels:
     - __name__
     action: keep
     regex: (network|service_network)_.+
-  - sourceLabels:
-    - namespace
-    action: keep
-    regex: kube-system
   relabelings:
   - action: replace
     replacement: network-traffic-gauger-agents
@@ -48,16 +41,8 @@ spec:
   - action: labelmap
     regex: __meta_kubernetes_pod_label_(.+)
   - sourceLabels: [__meta_kubernetes_pod_name]
-    separator: ;
-    regex: (.*)
     targetLabel: pod
-    replacement: $1
-    action: replace
-  - sourceLabels: [ __meta_kubernetes_service_name ]
-    regex: network-problem-detector-(pod|host)
-    replacement: ${1}
-    targetLabel: network
-  - sourceLabels: [ __meta_kubernetes_pod_node_name ]
+  - sourceLabels: [__meta_kubernetes_pod_node_name]
     targetLabel: node
   - targetLabel: __address__
     replacement: kube-apiserver:443
