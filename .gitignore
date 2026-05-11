@@ -28,3 +28,4 @@ dive.log
 
 # gosec
 gosec-report.sarif
+.DS_Store

@@ -9,6 +9,7 @@ import (
 	_ "embed"
 	"fmt"
 	"path/filepath"
+	"strings"
 	"time"
 
 	"github.com/gardener/gardener/extensions/pkg/controller"
@@ -30,6 +31,7 @@ import (
 	"k8s.io/client-go/rest"
 	"k8s.io/utils/ptr"
 	"sigs.k8s.io/controller-runtime/pkg/client"
+	"sigs.k8s.io/controller-runtime/pkg/manager"
 
 	"github.com/gardener/gardener-extension-shoot-networking-traffic-gauger/charts"
 	"github.com/gardener/gardener-extension-shoot-networking-traffic-gauger/imagevector"
@@ -43,8 +45,11 @@ const (
 )
 
 // NewActuator returns an actuator responsible for Extension resources.
-func NewActuator(config config.Configuration) extension.Actuator {
+func NewActuator(mgr manager.Manager, config config.Configuration) extension.Actuator {
 	return &actuator{
+		client:        mgr.GetClient(),
+		config:        mgr.GetConfig(),
+		decoder:       serializer.NewCodecFactory(mgr.GetScheme(), serializer.EnableStrict).UniversalDecoder(),
 		serviceConfig: config,
 	}
 }
@@ -90,7 +95,7 @@ func (a *actuator) createSeedResources(ctx context.Context, log logr.Logger, clu
 }
 
 func (a *actuator) createShootResources(ctx context.Context, cluster *controller.Cluster, namespace string) error {
-	shootResources, err := a.getShootAgentResources()
+	shootResources, err := a.getShootAgentResources(cluster)
 	if err != nil {
 		return err
 	}
@@ -181,25 +186,7 @@ func (a *actuator) Migrate(ctx context.Context, log logr.Logger, ex *extensionsv
 	return a.Delete(ctx, log, ex)
 }
 
-// InjectConfig injects the rest config to this actuator.
-func (a *actuator) InjectConfig(config *rest.Config) error {
-	a.config = config
-	return nil
-}
-
-// InjectClient injects the controller runtime client into the reconciler.
-func (a *actuator) InjectClient(client client.Client) error {
-	a.client = client
-	return nil
-}
-
-// InjectScheme injects the given scheme into the reconciler.
-func (a *actuator) InjectScheme(scheme *runtime.Scheme) error {
-	a.decoder = serializer.NewCodecFactory(scheme, serializer.EnableStrict).UniversalDecoder()
-	return nil
-}
-
-func (a *actuator) getShootAgentResources() (map[string][]byte, error) {
+func (a *actuator) getShootAgentResources(cluster *controller.Cluster) (map[string][]byte, error) {
 	shootRegistry := managedresources.NewRegistry(kubernetes.ShootScheme, kubernetes.ShootCodec, kubernetes.ShootSerializer)
 
 	image, err := imagevector.ImageVector().FindImage(constants.AgentImageName)
@@ -207,33 +194,53 @@ func (a *actuator) getShootAgentResources() (map[string][]byte, error) {
 		return nil, err
 	}
 
-	objects := []client.Object{}
-	serviceAccountName := ""
+	var clusterRanges []string
+	if networking := cluster.Shoot.Spec.Networking; networking != nil {
+		if networking.Nodes != nil {
+			clusterRanges = append(clusterRanges, *networking.Nodes)
+		}
+		if networking.Pods != nil {
+			clusterRanges = append(clusterRanges, *networking.Pods)
+		}
+	}
 
-	daemonset := buildDaemonSet(image.String(), serviceAccountName)
+	daemonset := buildDaemonSet(image.String(), "", clusterRanges)
 	networkPolicy := buildNetworkPolicy()
-	objects = append(objects, daemonset, networkPolicy)
 
-	shootResources, err := shootRegistry.AddAllAndSerialize(objects...)
+	shootResources, err := shootRegistry.AddAllAndSerialize(daemonset, networkPolicy)
 	if err != nil {
 		return nil, err
 	}
 	return shootResources, nil
 }
 
-func buildDaemonSet(image string, serviceAccountName string) client.Object {
+func buildDaemonSet(image string, serviceAccountName string, clusterRanges []string) client.Object {
 	var (
 		requestCPU                   = resource.MustParse("10m")
 		requestMemory                = resource.MustParse("32Mi")
 		limitMemory                  = resource.MustParse("64Mi")
 		automountServiceAccountToken = false
-		fileStoreDirectory           = "/var/log/net-gauger"
-		hostPathType                 = corev1.HostPathDirectoryOrCreate
 		labels                       = map[string]string{
 			labelKeyK8sApp:        constants.ApplicationName,
 			"gardener.cloud/role": constants.ApplicationName,
 		}
+		agentCommand = []string{
+			"/net-gauger",
+			"run-agent",
+			"--dump-period=1m",
+			"--event-channel-buffer-size=1024",
+			"--event-receive-buffer-size=1048576",
+			fmt.Sprintf("--metrics-port=%d", metricsPort),
+			"--enable-service-metrics=true",
+			"--enable-byte-metrics=true",
+			"--enable-packet-metrics=true",
+			"--enable-flow-count-metrics=true",
+		}
 	)
+
+	if len(clusterRanges) > 0 {
+		agentCommand = append(agentCommand, fmt.Sprintf("--cluster-ranges=%s", strings.Join(clusterRanges, ",")))
+	}
 
 	return &appsv1.DaemonSet{
 		ObjectMeta: metav1.ObjectMeta{
@@ -297,20 +304,7 @@ func buildDaemonSet(image string, serviceAccountName string) client.Object {
 						Name:            constants.ApplicationName,
 						Image:           image,
 						ImagePullPolicy: corev1.PullIfNotPresent,
-						Command: []string{
-							"/net-gauger",
-							"run-agent",
-							"--dump-period=1m",
-							"--event-channel-buffer-size=1024",
-							"--event-receive-buffer-size=1048576",
-							fmt.Sprintf("--file-store-directory=%s", fileStoreDirectory),
-							"--file-store-channel-buffer-size=1024",
-							fmt.Sprintf("--metrics-port=%d", metricsPort),
-							"--enable-service-metrics=true",
-							"--enable-byte-metrics=true",
-							"--enable-packet-metrics=true",
-							"--enable-flow-count-metrics=true",
-						},
+						Command:         agentCommand,
 						LivenessProbe: &corev1.Probe{
 							ProbeHandler: corev1.ProbeHandler{
 								TCPSocket: &corev1.TCPSocketAction{
@@ -346,25 +340,7 @@ func buildDaemonSet(image string, serviceAccountName string) client.Object {
 								Add: []corev1.Capability{"NET_ADMIN"},
 							},
 						},
-						VolumeMounts: []corev1.VolumeMount{
-							{
-								Name:      "storage",
-								ReadOnly:  false,
-								MountPath: fileStoreDirectory,
-							},
-						},
 					}},
-					Volumes: []corev1.Volume{
-						{
-							Name: "storage",
-							VolumeSource: corev1.VolumeSource{
-								HostPath: &corev1.HostPathVolumeSource{
-									Path: fileStoreDirectory,
-									Type: &hostPathType,
-								},
-							},
-						},
-					},
 					SecurityContext: &corev1.PodSecurityContext{
 						SeccompProfile: &corev1.SeccompProfile{
 							Type: corev1.SeccompProfileTypeRuntimeDefault,

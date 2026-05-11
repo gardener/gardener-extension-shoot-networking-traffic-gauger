@@ -13,7 +13,7 @@ import (
 
 var _ = Describe("activator methods", func() {
 	It("#buildDaemonSet", func() {
-		obj := buildDaemonSet("image:tag", "serviceAccount")
+		obj := buildDaemonSet("image:tag", "serviceAccount", []string{"10.0.0.0/16", "10.1.0.0/16"})
 		Expect(obj).NotTo(BeNil())
 		var ds *appsv1.DaemonSet
 		switch v := obj.(type) {
