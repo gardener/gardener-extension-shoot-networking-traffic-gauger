@@ -10,8 +10,8 @@
   "separateMinorPatch": true,
   "packageRules": [
     {
-      "matchDatasources": ["docker", "go-version"],
-      "matchPackagePatterns": ["golang"],
+      "matchDatasources": ["docker", "golang-version"],
+      "matchPackagePatterns": ["go", "golang"],
       "automerge": true
     },
     {
@@ -24,6 +24,14 @@
       matchManagers: ["gomod"],
       matchPackageNames: [
         '/^github\\.com/gardener/',
+      ],
+      "automerge": true
+    },
+    {
+      "matchManagers": ["github-actions"],
+      "matchPackagePatterns": [
+        "^actions/checkout$",
+        "^actions/setup-go$",
       ],
       "automerge": true
     },
