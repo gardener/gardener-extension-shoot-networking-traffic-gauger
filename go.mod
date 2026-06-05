@@ -2,7 +2,7 @@ module github.com/gardener/gardener-extension-shoot-networking-traffic-gauger
 
 go 1.23.0
 
-toolchain go1.23.1
+toolchain go1.23.12
 
 require (
 	github.com/ahmetb/gen-crd-api-reference-docs v0.3.0
