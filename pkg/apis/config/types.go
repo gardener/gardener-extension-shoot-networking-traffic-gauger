@@ -5,7 +5,7 @@
 package config
 
 import (
-	healthcheckconfig "github.com/gardener/gardener/extensions/pkg/apis/config/v1alpha1"
+	healthcheckconfigv1alpha1 "github.com/gardener/gardener/extensions/pkg/apis/config/v1alpha1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
@@ -19,7 +19,7 @@ type Configuration struct {
 	NetworkTrafficGauger *NetworkTrafficGauger
 
 	// HealthCheckConfig is the config for the health check controller.
-	HealthCheckConfig *healthcheckconfig.HealthCheckConfig
+	HealthCheckConfig *healthcheckconfigv1alpha1.HealthCheckConfig
 }
 
 // NetworkTrafficGauger contains the configuration for the network traffic gauger.
