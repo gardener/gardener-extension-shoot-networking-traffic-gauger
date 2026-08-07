@@ -1,6 +1,6 @@
 module github.com/gardener/gardener-extension-shoot-networking-traffic-gauger
 
-go 1.24.0
+go 1.25
 
 toolchain go1.26.4
 
@@ -19,7 +19,7 @@ require (
 	k8s.io/client-go v0.32.3
 	k8s.io/code-generator v0.32.3
 	k8s.io/component-base v0.32.3
-	k8s.io/utils v0.0.0-20250321185631-1f6e0b77f77e
+	k8s.io/utils v0.0.0-20260707023825-cf1189d6abe3
 	sigs.k8s.io/controller-runtime v0.20.4
 )
 
