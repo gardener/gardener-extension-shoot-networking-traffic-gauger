@@ -12,7 +12,7 @@ require (
 	github.com/onsi/gomega v1.36.3
 	github.com/spf13/cobra v1.9.1
 	github.com/spf13/pflag v1.0.10
-	go.uber.org/mock v0.5.0
+	go.uber.org/mock v0.5.2
 	golang.org/x/tools v0.31.0
 	k8s.io/api v0.32.13
 	k8s.io/apimachinery v0.32.13
