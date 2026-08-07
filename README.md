@@ -2,6 +2,9 @@
 
 [![reuse compliant](https://reuse.software/badge/reuse-compliant.svg)](https://reuse.software/)
 
+> [!WARNING]
+> This extension is a work in progress.
+
 Project Gardener implements the automated management and operation of [Kubernetes](https://kubernetes.io/) clusters as a service.
 Its main principle is to leverage Kubernetes concepts for all of its tasks.
 
